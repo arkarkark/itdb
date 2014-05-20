@@ -1,0 +1,103 @@
+<html><head><title>$title</title>
+<script type="text/javascript" src="${base}/html/tablesort.js"></script>
+
+<INCLUDEHEAD></head><body>
+
+<h2 align=center>$title</h2>
+
+<div align="center">
+<table class="otherpl" >
+#set $sum = $util.sum($thing.stars)
+<tr><th>
+#if $thing.num_stars != None
+<a class="plain" href="${script}?${thing.type}=${util.urlencode($thing.name)}">All Tracks</a>
+#else
+All Tracks
+#end if
+</th>
+<td>
+#if $thing.num_stars != None
+  <a class="plain" href="${script}?${thing.type}=${util.urlencode($thing.name)}">$sum</a>
+#else
+  $sum
+#end if
+</td>
+#for $x in range(0, 6)
+<td class="invisible">&nbsp;</td>
+#if $thing.stars[$x] > 0 and $x != $thing.num_stars
+<th align="right"><a class="plain" href="${script}?${thing.type}=${util.urlencode($thing.name)}&stars=${x}">$util.getStarsHTML($x, dir=$base + "/")</a></th>
+<td align="right"><a class="plain" href="${script}?${thing.type}=${util.urlencode($thing.name)}&stars=${x}">$thing.stars[$x]</a></td>
+#else
+<th align="right">$util.getStarsHTML($x, dir=$base + "/")</th>
+<td align="right">$thing.stars[$x]</td>
+#end if
+#end for
+</table>
+</td></tr></table>
+
+<p></p>
+
+<table class="alist">
+<tr>
+  <th class="first"><a class="plain" href="" title="Sort alphabetically" onclick="this.blur(); return sortTable('tbody', 0, false);">Name</a></th>
+#set $col = 1
+#if $thing.type != "album"
+  <th><a class="plain" href="" title="Sort alphabetically" onclick="this.blur(); return sortTable('tbody', $col, false);">Album</a></th>
+#set $col = $col +1
+#end if
+#if $thing.type != "artist"
+  <th><a class="plain" href="" title="Sort alphabetically" onclick="this.blur(); return sortTable('tbody', $col, false);">Artist</a></th>
+#set $col = $col +1
+#end if
+#if $thing.type != "genre"
+  <th><a class="plain" href="" title="Sort alphabetically" onclick="this.blur(); return sortTable('tbody', $col, false);">Genre</a></th>
+#set $col = $col +1
+#end if
+  <th><a class="plain" href="" title="Sort by time" onclick="this.blur(); return sortTable('tbody', $col, false);">Time</a></th>
+#set $col = $col +1
+  <th><a class="plain" href="" title="Sort" onclick="this.blur(); return sortTable('tbody', $col, false);">Track</a></th>
+#set $col = $col +1
+  <th><a class="plain" href="" title="Sor" onclick="this.blur(); return sortTable('tbody', $col, false);">Disc</a></th>
+#set $col = $col +1
+  <th class="last"><a class="plain" href="" title="Sort by rating" onclick="this.blur(); return sortTable('tbody', $col, true);">Rating</a></th>
+</tr>
+<tbody id="tbody">
+#set $rowclass = "something"
+#for $track in $tracks
+#set $stars = $util.getStars($track[$index["Rating"]])
+#set $time = $util.formatTime($track[$index["Total_Time"]])
+#set $url = $util.getUrl($track[$index["Location"]])
+#set $rowclass = $rowclass == "" and "class='alternateRow'" or ""
+#set $genresfile = $util.urlencode($track[$index["Genre"]])
+#set $genresdesc = $track[$index["Genre"]] or '<i>empty</i>'
+#set $albumfile = $util.urlencode($track[$index["Album"]])
+#set $albumdesc = $track[$index["Album"]] or '<i>empty</i>'
+#set $artistfile = $util.urlencode($track[$index["Artist"]])
+#set $artistdesc = $track[$index["Artist"]] or '<i>empty</i>'
+<tr $rowclass>
+<td class="first" sortvalue="$track[$index["Name"]]">
+<a class="plain" href="$url">$track[$index["Name"]]</a>
+</td>
+#if $thing.type != "album"
+<td><a class="plain" href="${script}?album=${albumfile}">$albumdesc</a></td>
+</td>
+#end if
+#if $thing.type != "artist"
+<td><a class="plain" href="${script}?artist=${artistfile}">$artistdesc</a></td>
+#end if
+#if $thing.type != "genre"
+<td align="center" sortvalue="$track[$index["Genre"]]">
+<a class="plain" href="${script}?genre=${genresfile}">$genresdesc</a>  </td>
+#end if
+<td align="right" sortvalue="$track[$index["Total_Time"]]">$time</td>
+<td align="right">$track[$index["Track_Number"]]</td>
+<td align="right">$track[$index["Disc_Number"]]</td>
+<td class="last" sortvalue="$stars">$util.getStarsHTML($stars, dir=$base+ "/")
+</td>
+<!--  <td>$track[$index["Location"]]</td>	 -->
+</tr>
+#end for
+</table>
+</div>
+
+</body></html>

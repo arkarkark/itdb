@@ -1,0 +1,129 @@
+/* Created by: Alex K (wtwf.com) Sun Mar 12 17:25:04 2006                  */
+/* Last Modified: Time-stamp: <Tue Sep 26 16:39:52 PDT 2006>               */
+/* $Id: style.css,v 1.9 2006-09-26 23:43:19 ark Exp $ */
+
+.logo {
+  padding-right: 10px; width: 200;
+}
+
+
+a.plain {
+  text-decoration: none;
+  color: black;
+}
+
+/** outline tables have a black line around all cells */
+table.outline {
+  border-collapse: collapse;
+  border: 1px solid black;
+}
+
+table.outline th, table.outline td {
+  border: 1px solid black;
+}
+
+table.outline tr.alternateRow td {
+  background: #edf4fe;
+}
+
+/** alist tables have a black border around the header and the sides/bottom
+ * the main body of the table has alternateRow's with different colors
+ * and a grey line between cells
+ */
+table.alist {
+  border-collapse: collapse;
+  border: 1px solid black;
+}
+
+table.alist th {
+  border-bottom: 1px solid black;
+  border-left: 1px solid #a9a9a9;
+  border-right: 1px solid #a9a9a9;
+}
+
+table.alist th.sortedColumn {
+  background: #a9a9ff;
+}
+
+table.alist td {
+  border-left: 1px solid #a9a9a9;
+  border-right: 1px solid #a9a9a9;
+}
+
+table.alist tr.alternateRow td {
+  background: #edf4fe;
+}
+
+table.alist td.first, table.alist th.first {
+  border-left: 1px solid #000000;
+}
+
+table.alist td.last, table.alist th.last {
+  border-right: 1px solid #000000;
+}
+
+/** otherpl tables have just one row, with a few empty cells with no border */
+table.otherpl {
+  border-collapse: collapse;
+}
+
+table.otherpl td, table.otherpl th {
+  border: 1px solid black;
+}
+
+table.otherpl td.invisible {
+  border-style: none;
+  width: 35px;
+}
+
+
+div.usersettings {
+  position: absolute;
+  top: 2;
+  right: 5;
+}
+
+/* Tabs */
+div.tabArea {
+  font-size: 10pt;
+  font-weight: bold;
+  width: 100%;
+  border-bottom: 1px solid #000000;
+  margin-bottom: 3ex;
+}
+
+a.tab {
+  background-color: #ccddee;
+  z-index: 100;
+}
+
+a.tab, a.tab:visited {
+  color: #808080;
+}
+
+a.tab:hover {
+  background-color: #d0d0d0;
+  color: #606060;
+}
+
+a.activeTab {
+  background-color: #385898;
+  z-index: 105;
+  color: #ffffff;
+}
+
+a.activeTab:link {
+  color: #ffffff;
+}
+
+a.tab, a.activeTab {
+  border: 1px solid #000000;
+  padding: 2px 1em 2px 1em;
+  position: relative;
+  text-decoration: none;
+  top: -2px;
+  -moz-border-radius-topleft: 15px;
+  -moz-border-radius-topright: 15px;
+  border-top-left-radius: 15px;
+  border-top-right-radius: 15px;
+}

@@ -1,0 +1,82 @@
+<html><head><title>iTunes Library Statistics</title>
+<script type="text/javascript" src="html/tablesort.js"></script>
+<INCLUDEHEAD></head><body>
+
+<div class="tabArea">
+#for $thing in $types
+#if $thing == $type
+<a href="${script}?stat=${thing}" class="activeTab">${util.getTabName($thing)}</a>
+#else
+<a href="${script}?stat=${thing}" class="tab">${util.getTabName($thing)}</a>
+#end if
+#end for
+</div>
+
+#if $type == "overview"
+
+<!-- Totals -->
+<table class="outline">
+#for $key in $totals.keys()
+<tr><th align=right>Total ${util.capwords($key)}s:</th><td align=right>$totals[$key]</td></tr>
+#end for
+</table>
+
+<div style="margin-bottom: 2ex;"></div>
+
+<!-- How many of each rating -->
+<table class="outline">
+#for $stars in range(0, 6)
+<tr><th align=right>$util.getStarsHTML($stars)</th>
+<td align=right>$ratings[$stars]</td>
+<td align=right>$ratingspercent[$stars]</td>
+#end for
+</table>
+#else
+
+#set $column = "Top " + $util.capwords($type) + "s"
+
+<table class="alist" id="$type">
+<tr>
+  <th class=first><a class="plain" href="" title="Sort alphabetically" onclick="this.blur(); return sortTable('body$type', 0, false);">$column</a></th>
+  <th><a class="plain" href="" title="Sort by quality" onclick="this.blur(); return sortTable('body$type', 1, false);">Quality</a></th>
+  <th><a class="plain" href="" title="Sort by total number of tracks" onclick="this.blur(); return sortTable('body$type', 2, true);">Total</a></th>
+#set thclass = ""
+#for $x in range(0, 6)
+#if $x == 5
+#set $thclass = 'class="last"'
+#end if
+#set $idx = $x + 3
+<th $thclass><a class="plain" href="" title="Sort by number of tracks with this rating" onclick="this.blur(); return sortTable('body$type', $idx, true);">#slurp
+$util.getStarsHTML($x, vertical=True)
+</a></th>
+#end for
+</tr>
+
+<tbody id="body$type">
+#set $rowclass = "something"
+
+#for $genre in $typesdict[$type]
+
+#set $rowclass = $rowclass == "" and "class='alternateRow'" or ""
+<tr $rowclass><td class="first" sortvalue="$genre.name"><a class="plain" href="${script}?$type=${util.urlencode($genre.name)}">$genre.dispName</a></td>
+<td sortvalue="$genre.getQuality()" align=center>$util.getStarsHTML($genre.getQuality())</td>
+<td sortvalue="$genre.getTotal()" align=right><a class="plain" href="${script}?$type=${util.urlencode($genre.name)}">$genre.getTotal()</a></td>
+#set tdclass = ""
+#for $x in range(0, 6)
+#if $x == 5
+#set $tdclass = 'class="last"'
+#end if
+<td $tdclass sortvalue="$genre.stars[$x]" align=right>#slurp
+#if $genre.stars[$x] > 0
+<a class="plain" href="${script}?$type=${util.urlencode($genre.name)}&stars=${x}">$genre.stars[$x]</a>#slurp
+#else
+&nbsp;#slurp
+#end if
+</td>
+#end for
+</tr>
+#end for
+</tbody>
+</table>
+#end if
+</body></html>

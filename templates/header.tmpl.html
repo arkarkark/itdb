@@ -1,0 +1,24 @@
+<link rel="shortcut icon" href="${base}/html/favicon.ico" type="image/x-icon">
+<link rel="bookmark icon" href="${base}/html/favicon.ico" type="image/x-icon">
+<style type="text/css">
+@import url("${base}/html/style.css");
+</style>
+</head></body>
+<table class="header">
+ <tr>
+  <td class="logo"><a href="${base}/"><img
+      border=0 src="${base}/html/itdb.jpg" alt=""/></a></td>
+  <td>
+    <form>
+    <input name=q type=text>
+    <input type=submit value="search" onClick="this.form.q.value='Not yet!'; return false;">
+    </form>
+  </td>
+ </tr>
+</table>
+
+<div class="usersettings">
+${user} |
+<!--a href="${script}?edit=settings"-->Settings</a> |
+<a href="${base}/help/">Help</a>
+</div>

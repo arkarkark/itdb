@@ -1,0 +1,4 @@
+#for $track in $tracks
+#set $location = $util.getLocation($track[$index["Location"]])
+${location}
+#end for
