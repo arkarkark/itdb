@@ -98,11 +98,6 @@ class PlaylistLinks:
       return None
 
   def FromPlaylist(self, playlist, destination_directory, format, cp, m3u):
-    # make a subdirectory and rename destination_directory
-    destination_directory = os.path.join(destination_directory, playlist)
-    if not os.path.exists(destination_directory):
-      os.makedirs(destination_directory)
-
     # find the playlist id
     playlist_id = self.GetPlaylistId(playlist)
     if playlist_id is None:
@@ -121,11 +116,8 @@ class PlaylistLinks:
                                 results, format, cp, m3u)
 
 
-  def FromWhereClause(self, where, destination_directory, format, cp, m3u):
-    # make a subdirectory
-    if not os.path.exists(destination_directory):
-      os.makedirs(destination_directory)
-
+  def FromWhereClause(self,
+                      where, destination_directory, name, format, cp, m3u):
     # TODO(ark): make a file with the whereclause in it for Sync
     sql = ('SELECT ' + ','.join(COLUMNS) + ' FROM tracks WHERE %s ' % where)
     self.cursor.execute(sql)
@@ -133,7 +125,7 @@ class PlaylistLinks:
 
     # TODO(ark): make a name and a description for m3u file
     self.MakeLinksFromLocations(destination_directory,
-                                None, None,
+                                name, None,
                                 results, format, cp, m3u)
 
 
@@ -145,7 +137,15 @@ class PlaylistLinks:
       logging.debug('Randomizing playlist')
       random.shuffle(results)
 
-    format = os.path.join(format, '%(number)03d-%(basename)s')
+    if format.lower() != 'itunes':
+      format = os.path.join(format, '%(number)03d-%(basename)s')
+      # make a subdirectory and rename destination_directory
+      destination_directory = os.path.join(destination_directory, name)
+    else:
+      format = None
+
+    if not os.path.exists(destination_directory):
+      os.makedirs(destination_directory)
 
     m3u_file = None
     if m3u and name and description:
@@ -154,29 +154,39 @@ class PlaylistLinks:
 
     logging.debug('Making links for %d files in %s',
                   len(results), destination_directory)
+
     for result in results:
       filename = self.GetFilenameFromResult(result)
       result['number'] = self.number
       result['basename'] = os.path.basename(filename)
 
-      link = os.path.join(destination_directory, format  % result)
+      if format:
+        link = format % result
+      else:
+        link = os.path.sep.join(filename.split(os.path.sep)[-3:])
+      link = os.path.join(destination_directory, link)
       dir = os.path.dirname(link)
 
       if not os.path.exists(dir):
         os.makedirs(dir)
 
+      logging.info(link)
       self.number += 1
-      if cp:
-        logging.info('Copying %s from %s', os.path.basename(link), filename)
-        if not os.path.exists(link):
-          shutil.copyfile(filename, link)
+      if not os.path.exists(link):
+        if cp:
+          logging.info('Copying %s from %s', os.path.basename(link), filename)
+          if not os.path.exists(link):
+            shutil.copyfile(filename, link)
+        else:
+          logging.info('Linking %s from %s', os.path.basename(link), filename)
+          os.symlink(filename, link)
       else:
-        logging.info('Linking %s from %s', os.path.basename(link), filename)
-        os.symlink(filename, link)
+        logging.info('Exists  %s', os.path.basename(link))
+
       if m3u_file:
         m3u_file.write("#ITDBFILE:%s:%s\n" %
                        (result['Track_ID'], result['Location']))
-        m3u_file.write("%s\n" % os.path.basename(link))
+        m3u_file.write("%s\n" % link[len(destination_directory) + 1:])
 
     if m3u_file:
       m3u_file.close()
@@ -311,7 +321,7 @@ def Main():
       if not name:
         Usage(msg='You must provide a name when using where')
       else:
-        pll.FromWhereClause(where, os.path.join(destination_directory, name),
+        pll.FromWhereClause(where, destination_directory, name,
                             format, cp, m3u)
     else:
       Usage(msg='You must provide a playlist')
