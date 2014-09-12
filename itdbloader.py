@@ -139,7 +139,7 @@ class iTunesLoader:
       try:
         self.cursor.execute(sql, info)
       except Exception as e:
-        logging.error("\nSQL FAIL: %s\n%r\n", sql, info)
+        logging.error("\nTracks FAIL:%r\nSQL:%s\nINFO:%r\n", e, sql, info)
         # and keep going...
     print ""
 
@@ -163,10 +163,27 @@ class iTunesLoader:
       self.updateStatus(num)
       if info:
         # add this playlist
-        sql = ("REPLACE INTO playlists (User_ID, Playlist_ID, Name) VALUES "
-               "(%d, %%(Playlist ID)s, %%(Name)s)" %
-               self.userId)
-        self.cursor.execute(sql, info)
+
+        new_info = {
+          'User ID': self.userId,
+          'Playlist ID': -1,
+          'Name': u'',
+          'Playlist Persistent ID': u'',
+          'Parent Persistent ID': u''
+        }
+        for key in new_info.keys():
+          if key in info:
+            new_info[key] = info[key]
+
+        columns = ', '.join([x.replace(' ', '_') for x in new_info.keys()])
+        values = ', '.join(['%%(%s)s' % x for x in new_info.keys()])
+        sql = "REPLACE INTO playlists (%s) VALUES (%s)" % (columns, values)
+
+        try:
+          self.cursor.execute(sql, new_info)
+        except Exception as e:
+          logging.error("\nPlaylists FAIL:%r\nSQL:%s\nINFO:%r\n",
+                        e, sql, new_info)
 
         if len(info["Name"]) > len(maxName):
           maxName = info["Name"]

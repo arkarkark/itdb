@@ -13,6 +13,11 @@ Usage: %(PROGRAM)s
   -p playlist_name
   --playlist=name - create links for this playlist
 
+  -l playlist_like
+  --like=name - find all playlists matching like pattern and make links
+
+  --folder=name - find all playlists under this folder playlist
+
   -d destination
   --destination=directory - create links in this directory
 
@@ -97,11 +102,22 @@ class PlaylistLinks:
     else:
       return None
 
+  def FromPlaylistLike(self, like, destination_directory, format, cp, m3u):
+    # find all the playlists like this. then FromPlaylist them...
+    sql = 'SELECT Name, Playlist_ID AS id FROM Playlists WHERE Name LIKE %s'
+    self.cursor.execute(sql, (like,))
+    for x in self.cursor.fetchall():
+      self.FromPlaylistId(x['Name'], x['id'],
+                          destination_directory, format, cp, m3u)
+
   def FromPlaylist(self, playlist, destination_directory, format, cp, m3u):
-    # find the playlist id
+    # Find the playlist id
     playlist_id = self.GetPlaylistId(playlist)
     if playlist_id is None:
       logging.fatal('Unable to find playlist: %s', playlist)
+    self.FromPlaylistId(playlist, playlist_id, destination_directory, format, cp, m3u)
+
+  def FromPlaylistId(self, playlist, playlist_id, destination_directory, format, cp, m3u):
 
     sel = ', '.join(['tracks.%s as %s' % (x, x) for x in COLUMNS])
 
@@ -178,8 +194,11 @@ class PlaylistLinks:
           if not os.path.exists(link):
             shutil.copyfile(filename, link)
         else:
-          logging.info('Linking %s from %s', os.path.basename(link), filename)
-          os.symlink(filename, link)
+          logging.info('Linking %s from %s', link, filename)
+          try:
+            os.symlink(filename, link)
+          except Exception as e:
+            logging.error('\n\n\nsymlink error: %r %r', os.path.exists(link), e)
       else:
         logging.info('Exists  %s', os.path.basename(link))
 
@@ -255,10 +274,11 @@ def Main():
 
   # parse command line options
   try:
-    opts, args = getopt.getopt(sys.argv[1:], 'cd:f:hmn:p:rs:uw:',
-                               ['copy', 'destination=', 'format=', 'help',
-                                'm3u', 'name=', 'playlist=', 'random',
-                                'start_number=', 'sync', 'usb', 'where='])
+    opts, args = getopt.getopt(
+      sys.argv[1:], 'cd:f:hl:mn:p:rs:uw:',
+      ['copy', 'destination=', 'folder=', 'format=', 'help',
+       'like=', 'm3u', 'name=', 'playlist=', 'random',
+       'start_number=', 'sync', 'usb', 'where='])
   except getopt.error, msg:
     Usage(msg=msg)
 
@@ -266,7 +286,7 @@ def Main():
 
   playlist = None
   dbconfig = os.path.expanduser('~/.itdb.config')
-  destination_directory = None
+  destination_directory = os.path.expanduser('~/tmp/out')
   start_number = 1
   random_ordering = False
   where = None
@@ -275,64 +295,56 @@ def Main():
   cp = False
   sync = False
   m3u = False
+
+  pll = PlaylistLinks(dbconfig)
+
   for opt, arg in opts:
     if opt in ('-c', '--copy'):
       cp = True
     if opt in ('-d', '--destination'):
       destination_directory = arg
+    if opt in ('--folder'):
+      # pll.FromFolder(arg, destination_directory, format, cp, m3u) # WIP
+      pass
     if opt in ('-f', '--format'):
       format = arg
     if opt in ('-h', '--help'):
       Usage()
+    if opt in ('-l', '--like'):
+      pll.FromPlaylistLike(arg, destination_directory, format, cp, m3u)
     if opt in ('-m', '--m3u'):
       m3u = True
     if opt in ('-n', '--name'):
       name = arg
     if opt in ('-p', '--playlist'):
-      playlist = arg
+      pll.FromPlaylist(arg, destination_directory, format, cp, m3u)
     if opt in ('-r', '--random'):
-      random_ordering = True
+      pll.random_ordering = True
     if opt in ('-s', '--start_number'):
-      start_number = int(arg)
+      pll.number = int(arg)
     if opt in ('--sync'):
-      sync = True
       if destination_directory is None:
         destination_directory = FindUsb()
+      pll.Sync(destination_directory)  # TODO(ark): work in progress
     if opt in ('-u', '--usb'):
       if destination_directory is None:
         destination_directory = FindUsb()
       cp = True
       m3u = True
     if opt in ('-w', '--where'):
-      where = arg
-
-  if destination_directory is None:
-    destination_directory = os.path.expanduser('~/tmp/out')
-
-  pll = PlaylistLinks(dbconfig)
-  pll.number = start_number
-  pll.random_ordering = random_ordering
-  if sync:
-    pll.Sync(destination_directory)
-  else:
-    if playlist:
-      pll.FromPlaylist(playlist, destination_directory, format, cp, m3u)
-    elif where:
       if not name:
         Usage(msg='You must provide a name when using where')
       else:
-        pll.FromWhereClause(where, destination_directory, name,
+        pll.FromWhereClause(arg, destination_directory, name,
                             format, cp, m3u)
-    else:
-      Usage(msg='You must provide a playlist')
-    pll.close()
+
+  pll.close()
   if os.path.exists(destination_directory):
     cmd = '(cd "%s" && du -Lh -d 1 .)' % destination_directory
     print '\n Disk Size: %s' % cmd
     os.system(cmd)
     print ('\nmkisofs -f -R -J -m .DS_Store -o ~/tmp/disk.iso "%s"' %
            destination_directory)
-
 
 
 if __name__ == '__main__':
