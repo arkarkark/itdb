@@ -94,6 +94,9 @@ CREATE TABLE playlists (
 User_ID integer(4) NOT NULL,
 Playlist_ID integer(4) NOT NULL,
 Name varchar(1024),
+Playlist_Persistent_ID varchar(1024),
+Parent_Persistent_ID varchar(1024),
+-- Folder  boolean - how do we do this?
 PRIMARY KEY (User_ID, Playlist_ID)
 );
 
