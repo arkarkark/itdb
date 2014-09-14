@@ -124,13 +124,15 @@ class PlaylistLinks:
     self.FromPlaylistId(playlist, playlist_id)
 
   def FromFolder(self, folder):
-    sql = '''
-      SELECT Name AS name, Playlist_ID AS id FROM Playlists
-      WHERE Parent_Persistent_ID = (SELECT Playlist_Persistent_ID
-                                    FROM Playlists WHERE Name = %s)'''
+    sql = 'SELECT Playlist_Persistent_ID FROM Playlists WHERE Name = %s'
     self.cursor.execute(sql, (folder,))
-    for x in self.cursor.fetchall():
-      self.FromPlaylistId(x['name'], x['id'])
+    ids = [x['Playlist_Persistent_ID'] for x in self.cursor.fetchall()]
+    for id in ids:
+      sql = '''SELECT Name AS name, Playlist_ID AS id FROM Playlists
+          WHERE Parent_Persistent_ID = %s'''
+      self.cursor.execute(sql, (id,))
+      for x in self.cursor.fetchall():
+        self.FromPlaylistId(x['name'], x['id'])
 
   def FromPlaylistId(self, playlist, playlist_id):
     sel = ', '.join(['tracks.%s as %s' % (x, x) for x in COLUMNS])
@@ -170,14 +172,10 @@ class PlaylistLinks:
     if not os.path.exists(destination_directory):
       os.makedirs(destination_directory)
 
+    logging.info('Playlist: %s (Making links for %d files in %s)',
+                 name, len(results), destination_directory)
+
     m3u_file = None
-    if self.m3u and name and description:
-      m3u_file = open(os.path.join(destination_directory, name + ".m3u"), "w")
-      m3u_file.write("#ITDBDESC:%s\n" % description)
-
-    logging.debug('Making links for %d files in %s',
-                  len(results), destination_directory)
-
     for result in results:
       filename = self.GetFilenameFromResult(result)
       result['number'] = self.number
@@ -188,31 +186,41 @@ class PlaylistLinks:
       else:
         link = os.path.sep.join(filename.split(os.path.sep)[-3:])
       link = os.path.join(destination_directory, link)
-      dir = os.path.dirname(link)
-
-      if not os.path.exists(dir):
-        os.makedirs(dir)
 
       self.number += 1
       exists = False
-      if not os.path.exists(link):
-        if not self.nonewmusic:
-          if self.cp:
-            logging.info('Copying %s from %s', link, filename)
-            shutil.copyfile(filename, link)
-            exists = True
-          else:
-            logging.info('Linking %s from %s', link, filename)
-            try:
-              os.symlink(filename, link)
-              exists = True
-            except Exception as e:
-              logging.error('\n\n\nsymlink error: %r %r', os.path.exists(link), e)
-      else:
-        logging.info('Exists  %s', os.path.basename(link))
-        exists = True
+      if os.path.exists(filename):
+        dir = os.path.dirname(link)
+        if not os.path.exists(dir):
+          os.makedirs(dir)
 
-      if m3u_file and exists:
+        if not os.path.exists(link):
+          if not self.nonewmusic:
+            if self.cp:
+              logging.debug('Copying %s from %s', link, filename)
+              shutil.copyfile(filename, link)
+              exists = True
+            else:
+              logging.debug('Linking %s from %s', link, filename)
+              try:
+                os.symlink(filename, link)
+                exists = True
+              except Exception as e:
+                logging.error('\n\n\nsymlink error: %r %r', os.path.exists(link), e)
+          else:
+            logging.debug('Skipping (nonewmusic) %s %s', link, filename)
+        else:
+          logging.debug('Exists  %s', os.path.basename(link))
+          exists = True
+      else:
+        if not self.nonewmusic:
+          logging.error('Source file does not exist: %s', filename)
+
+      if m3u_file or (self.m3u and name and description and exists):
+        if not m3u_file:
+          m3u_filename = os.path.join(destination_directory, name + ".m3u")
+          m3u_file = open(m3u_filename, "w")
+          m3u_file.write("#ITDBDESC:%s\n" % description)
         m3u_file.write("#ITDBFILE:%s:%s\n" %
                        (result['Track_ID'], result['Location']))
         m3u_file.write("%s\n" % link[len(destination_directory) + 1:])
@@ -253,6 +261,7 @@ class PlaylistLinks:
   def SyncPlaylist(self, playlist, playlist_id):
     logging.info('Syncing Playlist: %s', playlist)
 
+    logging.fatal('Syncing Playlists is not yet supported!')
     # get files in directory
 
 
@@ -279,16 +288,17 @@ def Main():
   """Parse flags, setup logging and go!"""
 
   logging.basicConfig()
-  logging.getLogger().setLevel(logging.DEBUG)
-  logging.debug('Starting %s', ' '.join(sys.argv))
+  log_level = logging.INFO  # this is 20 - they go in steps of 10
+  logging.getLogger().setLevel(logging.INFO)
+  logging.info('Starting %s', ' '.join(sys.argv))
 
   # parse command line options
   try:
     opts, args = getopt.getopt(
-      sys.argv[1:], 'cd:f:hl:mn:p:rs:uw:',
+      sys.argv[1:], 'cd:f:hl:mn:p:rs:uvw:',
       ['copy', 'destination=', 'folder=', 'format=', 'help',
        'like=', 'm3u', 'name=', 'nonewmusic', 'playlist=', 'random',
-       'start_number=', 'sync', 'usb', 'where='])
+       'start_number=', 'sync', 'usb', 'verbose', 'where='])
   except getopt.error, msg:
     Usage(msg=msg)
 
@@ -322,6 +332,7 @@ def Main():
     if opt in ('-n', '--name'):
       name = arg
     if opt in ('--nonewmusic'):
+      logging.info('No new music links will be added...')
       pll.nonewmusic = True
     if opt in ('-p', '--playlist'):
       pll.FromPlaylist(arg)
@@ -338,6 +349,9 @@ def Main():
         pll.destination_directory = FindUsb()
       pll.cp = True
       pll.m3u = True
+    if opt in ('-v', '--verbose'):
+      log_level -= 10
+      logging.getLogger().setLevel(logging.INFO)
     if opt in ('-w', '--where'):
       if not name:
         Usage(msg='You must provide a name when using where')
@@ -346,7 +360,8 @@ def Main():
 
   pll.close()
   if os.path.exists(pll.destination_directory):
-    cmd = '(cd "%s" && du -Lh -d 1 .)' % pll.destination_directory
+    depth = (pll.format.lower() != 'itunes' and 1) or 0
+    cmd = '(cd "%s" && du -Lh -d %d .)' % (pll.destination_directory, depth)
     print '\n Disk Size: %s' % cmd
     os.system(cmd)
     print ('\nmkisofs -f -R -J -m .DS_Store -o ~/tmp/disk.iso "%s"' %

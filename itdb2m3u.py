@@ -42,7 +42,6 @@ def usage(code, msg=''):
   sys.exit(code)
 
 
-
 if __name__ == '__main__':
   began = str(datetime.datetime.today())
   logging.basicConfig()

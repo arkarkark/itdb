@@ -10,7 +10,7 @@ clean=yes
 host=localhost
 database=itdb
 user=itdb
-password=
+password=itdb
 
 [user]
 ; userid's allow you to store more than one user's data in the same database
