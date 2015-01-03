@@ -134,9 +134,9 @@ class FormatUtil:
       ans.append("<nobr>")
     for x in range(0, 5):
       if stars > x:
-        ans.append('<img border=0 src="%shtml/ratingstar.gif" alt="*">' % dir)
+        ans.append('<img border=0 src="%sratingstar.gif" alt="*">' % dir)
       else:
-        ans.append('<img border=0 src="%shtml/ratingdot.gif" alt=".">' % dir)
+        ans.append('<img border=0 src="%sratingdot.gif" alt=".">' % dir)
       if vertical:
         ans.append('<br>')
     if not vertical:
@@ -183,6 +183,8 @@ class iTunesDbToHtml:
     self.dir = config.get("html", "dir")
     self.base = config.get("html", "base")
     self.script = self.base + '/' + config.get("html", "script")
+    logging.info('dir is : %r', self.dir)
+
     atexit.register(self.close)
     #  locale.setlocale(locale.LC_ALL, "en_US")
     locale.setlocale(locale.LC_ALL, "en_US.UTF-8")
@@ -256,14 +258,14 @@ class iTunesDbToHtml:
   def getGenresData(self):
     self.cursor.execute("SELECT "
                         "CASE WHEN ISNULL(Genre) THEN '' ELSE Genre END"
-                        " AS Genre, "
+                        " AS DaGenre, "
                         "CASE WHEN ISNULL(Rating) THEN 0 "
                         "ELSE FLOOR(Rating/20) END "
                         " AS Stars, "
                         "COUNT(*) "
                         "FROM tracks "
                         "WHERE User_ID=%d "
-                        "GROUP BY Genre, Stars" % self.userId)
+                        "GROUP BY DaGenre, Stars" % self.userId)
     genres = {}
     row = self.cursor.fetchone()
     while row:
@@ -547,7 +549,7 @@ class iTunesDbToHtml:
 def CgiMain(it):
   """Run as a cgi program
   """
-  if config.getboolean("html", "exceptions"):
+  if config.has_option("html", "exceptions") and config.getboolean("html", "exceptions"):
     cgitb.enable()
 
   print "Content-type: text/html"
@@ -616,7 +618,7 @@ if __name__ == '__main__':
   config = ConfigParser.ConfigParser()
   config.read(['itdb.config',
                '/export/arkstuff/ark/.itdb.config',
-               os.path.expanduser('~ark/.itdb.config')])
+               os.path.expanduser('~/.itdb.config')])
 
   # if we need to add things to config
   # perhaps based on command line arguments here is where we do it

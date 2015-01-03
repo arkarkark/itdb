@@ -26,7 +26,7 @@
 <!-- How many of each rating -->
 <table class="outline">
 #for $stars in range(0, 6)
-<tr><th align=right>$util.getStarsHTML($stars)</th>
+<tr><th align=right>$util.getStarsHTML($stars, dir='../')</th>
 <td align=right>$ratings[$stars]</td>
 <td align=right>$ratingspercent[$stars]</td>
 #end for
@@ -47,7 +47,7 @@
 #end if
 #set $idx = $x + 3
 <th $thclass><a class="plain" href="" title="Sort by number of tracks with this rating" onclick="this.blur(); return sortTable('body$type', $idx, true);">#slurp
-$util.getStarsHTML($x, vertical=True)
+$util.getStarsHTML($x, vertical=True, dir='../')
 </a></th>
 #end for
 </tr>
@@ -59,7 +59,7 @@ $util.getStarsHTML($x, vertical=True)
 
 #set $rowclass = $rowclass == "" and "class='alternateRow'" or ""
 <tr $rowclass><td class="first" sortvalue="$genre.name"><a class="plain" href="${script}?$type=${util.urlencode($genre.name)}">$genre.dispName</a></td>
-<td sortvalue="$genre.getQuality()" align=center>$util.getStarsHTML($genre.getQuality())</td>
+<td sortvalue="$genre.getQuality()" align=center>$util.getStarsHTML($genre.getQuality(), dir='../')</td>
 <td sortvalue="$genre.getTotal()" align=right><a class="plain" href="${script}?$type=${util.urlencode($genre.name)}">$genre.getTotal()</a></td>
 #set tdclass = ""
 #for $x in range(0, 6)

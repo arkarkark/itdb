@@ -6,12 +6,14 @@ Once you have the data in your database you can do some fun stuff with it.
 playlistlinks will make symbolic links and m3u files for your playlists.
 itdb2html is a super old crusty, crufty web-ui for your music
 
-# setup
+# Database Setup
 
-Copy the config file and install mysql (I like [brew](http://brew.sh/)
-install mysql).
+Copy the config file and install mysql (I like [brew](http://brew.sh/)).
 
 ```bash
+brew install mysql
+mysql.server.start
+
 cp itdb.config.example ~/.itdb.config
 # maybe you want to edit ~/.itdb.config now?
 mysqladmin -u root create itdb
@@ -36,6 +38,15 @@ mysql --defaults-file=~/.itdb.config <<< 'SHOW TABLES'
 ./itdbloader.py
 # verify it works
 mysql --defaults-file=~/.itdb.config -E <<< 'SELECT COUNT(*) AS num_tracks FROM tracks; SELECT COUNT(*) AS num_playlisys FROM playlists;' | fgrep -v '*****'
+```
+
+## Packages
+
+Here's what I had to do on my mac to get things working.
+
+```bash
+sudo easy_install pip cheetah
+sudo pip install MySQL-python
 ```
 
 ## itdbloader.py
