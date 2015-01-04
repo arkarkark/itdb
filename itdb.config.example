@@ -1,6 +1,6 @@
 [iTunes]
 ; the location of your xml file
-xmlfile=/Users/ark/Music/iTunes/iTunes\ Music\ Library.xml
+xmlfile=/Users/ark/Music/iTunes/iTunes Music Library.xml
 ; if your xml has 'weird' charcters in it it must be cleaned. yes/no
 clean=yes
 

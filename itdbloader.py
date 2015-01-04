@@ -305,6 +305,9 @@ if __name__ == '__main__':
   loading = os.path.join(directory, ".loading")
   loaded = os.path.join(directory, ".loaded")
 
+  if not os.path.exists(xmlfile):
+    usage(9, 'ERROR: iTunes xmlfile %r does not exist' % xmlfile)
+
   # check to see if we really even need to run
   if not (config.getboolean("loader", "force") or
           not os.path.exists(loaded) or
