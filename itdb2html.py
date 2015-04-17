@@ -373,7 +373,7 @@ class iTunesDbToHtml:
                              % self.userId)
     ratingspercent = []
     for x in range(0, 6):
-      ratingspercent.append("%d%%" % ((ratings[x] * 100) / totals["track"]))
+      ratingspercent.append("%d%%" % (((ratings[x] if x in ratings else 0) * 100) / totals["track"]))
 
     self.genres = self.getGenresData()
     self.genres.sort()
