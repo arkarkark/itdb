@@ -131,7 +131,7 @@ var playlist = iTunes.playlists.whose({name: "%(name)s"})[0]
 for (trackId of ids) {
   var track = iTunes.tracks.whose({persistentID: trackId})
   if (track && track.length) {
-    track.duplicate({to: playlist})
+    track[0].duplicate({to: playlist})
   } else {
     console.log("Failed to find", trackId)
   }
