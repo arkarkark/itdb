@@ -6,6 +6,25 @@ Once you have the data in your database you can do some fun stuff with it.
 playlistlinks will make symbolic links and m3u files for your playlists.
 itdb2html is a super old crusty, crufty web-ui for your music
 
+## Packages
+
+Here's what I had to do on my mac to get things working.
+
+```bash
+# from: https://stackoverflow.com/questions/12218229
+brew install mysql
+brew unlink mysql
+brew install mysql-connector-c
+sed -i -e 's/libs="$libs -l "/libs="$libs -lmysqlclient -lssl -lcrypto"/g' /usr/local/bin/mysql_config
+pip install MySQL-python
+brew unlink mysql-connector-c
+brew link --overwrite mysql
+
+easy_install pip cheetah
+pip install MySQL-python
+pip install python-dateutil
+```
+
 # Database Setup
 
 Copy the config file and install mysql (I like [brew](http://brew.sh/)).
@@ -22,9 +41,8 @@ mysql -u root
 
 Then run these commands (you might want to change the password (and in ~/.itdb.config too):
 ```sql
-CREATE USER itdb;
+CREATE USER itdb@localhost IDENTIFIED WITH mysql_native_password BY 'itdb';
 GRANT ALL PRIVILEGES ON itdb.* TO 'itdb'@'localhost' WITH GRANT OPTION;
-UPDATE mysql.user SET Password = PASSWORD('itdb') WHERE Host IN ('%', 'localhost') AND User = 'itdb';
 FLUSH PRIVILEGES;
 ```
 
@@ -38,15 +56,6 @@ mysql --defaults-file=~/.itdb.config <<< 'SHOW TABLES'
 ./itdbloader.py
 # verify it works
 mysql --defaults-file=~/.itdb.config -E <<< 'SELECT COUNT(*) AS num_tracks FROM tracks; SELECT COUNT(*) AS num_playlisys FROM playlists;' | fgrep -v '*****'
-```
-
-## Packages
-
-Here's what I had to do on my mac to get things working.
-
-```bash
-sudo easy_install pip cheetah
-sudo pip install MySQL-python
 ```
 
 ## itdbloader.py

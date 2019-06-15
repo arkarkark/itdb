@@ -6,6 +6,8 @@
 -- I've added a column called User_ID to allow the database to store
 -- more than one person's library
 
+SET SQL_MODE='ALLOW_INVALID_DATES';
+
 -- right now we only store track info and playlist info
 
 DROP TABLE IF EXISTS tracks;

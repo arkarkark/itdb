@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # Copyright 2007 Alex K (wtwf.com) All rights reserved.
 
 """
