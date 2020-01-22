@@ -112,7 +112,7 @@ class iTunesLoader:
         break
 
       num += 1
-      self.updateStatus(num)
+      self.updateStatus(num, '.', every=20)
       # now load it into the DB
 
       # we don't load everything, only things we have columns for
@@ -152,6 +152,8 @@ class iTunesLoader:
     while notFound:
       try:
         info = self.lib.getPlaylist()
+        if not info:
+          raise EOFError
       except EOFError:
         notFound = False
         break;
@@ -160,7 +162,7 @@ class iTunesLoader:
         break;
 
       num += 1
-      self.updateStatus(num)
+      self.updateStatus(num, '*', every=1)
       if info:
         # add this playlist
 
@@ -238,10 +240,13 @@ class iTunesLoader:
                           "(%d, %d, %d, %d)" %
                           (self.userId, playlistId, row[0] * 20, row[1]))
 
-  def updateStatus(self, out):
-    """Print a dot on every fifteenth item"""
-    if not out.__mod__(15):
-      sys.stdout.write('.')
+  def updateStatus(self, out, character='.', every=20):
+    """Print a dot on every fiftieth item"""
+    if not out.__mod__(every):
+      if not out.__mod__(every * 50):
+        sys.stdout.write("% 6d\n" % out)
+      else:
+        sys.stdout.write(character)
       sys.stdout.flush()
 
   def ShowMaxLengths(self):
@@ -318,14 +323,15 @@ if __name__ == '__main__':
   touch(loading)
   itl = iTunesLoader(config)
 
-  if config.getboolean("loader", "clear"):
-    logging.info("Clearing database")
-    itl.ClearDatabase()
+  if itl:
+    if config.getboolean("loader", "clear"):
+      logging.info("Clearing database")
+      itl.ClearDatabase()
 
-  itl.LoadTracks()
-  itl.LoadPlaylists()
-  if config.getboolean("loader", "showmax"):
-    itl.ShowMaxLengths()
+    itl.LoadTracks()
+    itl.LoadPlaylists()
+    if config.getboolean("loader", "showmax"):
+      itl.ShowMaxLengths()
 
   if config.getboolean("loader", "stats"):
     it = itdb2html.iTunesDbToHtml(config)

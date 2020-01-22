@@ -15,6 +15,7 @@ Here's what I had to do on my mac to get things working.
 brew install mysql
 brew unlink mysql
 brew install mysql-connector-c
+ln -s /usr/local/bin/mysql_config-e /usr/local/bin/mysql_config
 sed -i -e 's/libs="$libs -l "/libs="$libs -lmysqlclient -lssl -lcrypto"/g' /usr/local/bin/mysql_config
 pip install MySQL-python
 brew unlink mysql-connector-c
