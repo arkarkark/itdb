@@ -1,0 +1,99 @@
+#!/usr/bin/env python3
+# Copyright 2020 Alex K (wtwf.com)
+
+"""Convert an SQL statement into an itunes playlist.
+
+SQL must have a Persistent_ID column in it.
+
+Database should be created with https://github.com/arkarkark/itdb
+
+"""
+
+__author__ = "wtwf.com (Alex K)"
+
+import argparse
+import atexit
+import configparser
+import logging
+import os
+import sys
+
+import appscript
+import MySQLdb
+
+
+def usage(code, msg=""):
+    """Show a usage message."""
+    file = sys.stderr if code else sys.stdout
+    PROGRAM = os.path.basename(  # pylint: disable=invalid-name,possibly-unused-variable
+        sys.argv[0]
+    )
+    print(__doc__ % locals(), file=file)
+    if msg:
+        print(msg, file=file)
+    sys.exit(code)
+
+
+def playlist_from_results(name, rows):
+    "Use appscript to make a playlist and add tracks to it."
+    i = appscript.app("iTunes")
+    # TODO: maybe check to see if a playlist with this name already exists?
+    playlist = i.playlists[1].make(new=appscript.k.playlist)
+    playlist.name.set(name)
+
+    for row in rows:
+        print("name" in row and row["name"] or row["Persistent_ID"])
+        track = i.user_playlists[1].tracks[
+            appscript.its.persistent_ID == row["Persistent_ID"]
+        ]
+        track.duplicate(to=playlist)
+
+
+def sql_to_playlist(config, sql, playlist):
+    "Connect and make a playlist from some SQL."
+    conn = MySQLdb.connect(
+        host=config.get("client", "host"),
+        db=config.get("client", "database"),
+        user=config.get("client", "user"),
+        passwd=config.get("client", "password"),
+    )
+    atexit.register(conn.close)
+
+    logging.debug("connected")
+    conn.autocommit(True)
+    cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+    cursor.execute(sql)
+    rows = cursor.fetchall()
+    playlist_from_results(playlist, rows)
+
+
+def main():
+    """Parse args and do the thing."""
+    logging.basicConfig()
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-s", "--sql", help="SQL")
+    parser.add_argument("-p", "--playlist", help="playlist name")
+    parser.add_argument("-v", "--verbose", help="Log verbosely", action="store_true")
+    parser.add_argument("-d", "--debug", help="Log debug messages", action="store_true")
+
+    args = parser.parse_args()
+
+    if args.verbose:
+        logging.getLogger().setLevel(logging.INFO)
+    if args.debug:
+        logging.getLogger().setLevel(logging.DEBUG)
+
+    logging.info("Log")
+
+    if not args.sql or not args.playlist:
+        usage(code=1, msg="You must provide some SQL and a Playlist name")
+
+    config = configparser.ConfigParser()
+    config.read(["itdb.config", os.path.expanduser("~/.itdb.config")])
+
+    sql_to_playlist(config, args.sql, args.playlist)
+
+
+if __name__ == "__main__":
+    main()

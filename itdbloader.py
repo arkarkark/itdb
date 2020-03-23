@@ -17,32 +17,35 @@ Options:
     Print this message and exit
 """
 
-import sys
-import os
-import logging
-import configparser
-import MySQLdb
-import tempfile
 import atexit
+import configparser
 import datetime
 import getopt
+import logging
+import os
 import stat
+import sys
+import tempfile
 
 from xml.sax._exceptions import SAXParseException
+
+import MySQLdb
 
 import iTunes
 import itdb2html
 
+# pylint: disable=missing-docstring
 
-def usage(code, msg=""):
-    if code:
-        fd = sys.stderr
-    else:
-        fd = sys.stdout
-    PROGRAM = os.path.basename(sys.argv[0])
-    print(__doc__ % locals(), file=fd)
+
+def usage(code=False, msg=""):
+    """Show a usage message."""
+    file = sys.stderr if code else sys.stdout
+    PROGRAM = os.path.basename(  # pylint: disable=invalid-name,possibly-unused-variable
+        sys.argv[0]
+    )
+    print(__doc__ % locals(), file=file)
     if msg:
-        print(msg, file=fd)
+        print(msg, file=file)
     sys.exit(code)
 
 
@@ -74,7 +77,7 @@ class iTunesLoader:
         self.conn.autocommit(True)
         atexit.register(self.close)
         self.cursor = self.conn.cursor()
-        self.userId = int(config.get("user", "id"))
+        self.user_id = int(config.get("user", "id"))
         self.max = {}
         # dictionary of column names we're missing (and their max values)
         self.missing = {}
@@ -90,8 +93,8 @@ class iTunesLoader:
         logging.info("Closing db")
         self.conn.close()
 
-    def LoadTracks(self):
-        notFound = True
+    def load_tracks(self):
+        not_found = True
         num = 0
 
         # find columns in the tracks table
@@ -104,19 +107,19 @@ class iTunesLoader:
         )
 
         logging.info("Loading tracks data")
-        notFound = True
-        while notFound:
+        not_found = True
+        while not_found:
             try:
                 info = self.lib.getTrack()
             except EOFError:
-                notFound = False
+                not_found = False
                 break
 
             if not info:
                 break
 
             num += 1
-            self.updateStatus(num, ".", every=20)
+            self.update_status(num, ".", every=20)
             # now load it into the DB
 
             # we don't load everything, only things we have columns for
@@ -138,43 +141,43 @@ class iTunesLoader:
                         self.missing[key] = str(info[key])
             keys = newkeys
 
-            sql = "REPLACE INTO tracks (User_ID, %%s) VALUES (%d, %%s)" % self.userId
+            sql = "REPLACE INTO tracks (User_ID, %%s) VALUES (%d, %%s)" % self.user_id
             sql = sql % (
                 ", ".join([x.replace(" ", "_") for x in keys]),
                 ", ".join(["%%(%s)s" % x for x in keys]),
             )
             try:
                 self.cursor.execute(sql, info)
-            except Exception as e:
-                logging.error("\nTracks FAIL:%r\nSQL:%s\nINFO:%r\n", e, sql, info)
+            except Exception as ex:
+                logging.error("\nTracks FAIL:%r\nSQL:%s\nINFO:%r\n", ex, sql, info)
                 # and keep going...
         print("")
 
-    def LoadPlaylists(self):
+    def load_playlists(self):
         # now for the PlayLists!
         num = 0
-        notFound = True
+        not_found = True
         logging.info("Building Playlists")
-        maxName = ""
-        while notFound:
+        max_name = ""
+        while not_found:
             try:
                 info = self.lib.getPlaylist()
                 if not info:
                     raise EOFError
             except EOFError:
-                notFound = False
+                not_found = False
                 break
             except SAXParseException:
-                notFound = False
+                not_found = False
                 break
 
             num += 1
-            self.updateStatus(num, "*", every=1)
+            self.update_status(num, "*", every=1)
             if info:
                 # add this playlist
 
                 new_info = {
-                    "User ID": self.userId,
+                    "User ID": self.user_id,
                     "Playlist ID": -1,
                     "Name": "",
                     "Playlist Persistent ID": "",
@@ -192,32 +195,31 @@ class iTunesLoader:
 
                 try:
                     self.cursor.execute(sql, new_info)
-                except Exception as e:
+                except Exception as ex:
                     logging.error(
-                        "\nPlaylists FAIL:%r\nSQL:%s\nINFO:%r\n", e, sql, new_info
+                        "\nPlaylists FAIL:%r\nSQL:%s\nINFO:%r\n", ex, sql, new_info
                     )
 
-                if len(info["Name"]) > len(maxName):
-                    maxName = info["Name"]
+                if len(info["Name"]) > len(max_name):
+                    max_name = info["Name"]
 
                 if "Playlist Items" in info:
                     # now add all the songs
-                    playlistId = int(info["Playlist ID"])
+                    playlist_id = int(info["Playlist ID"])
                     sql = (
                         "REPLACE INTO playlist_tracks "
                         "(User_ID, Playlist_ID, Track_ID) "
-                        "VALUES (%d, %d, %%(Track ID)s)" % (self.userId, playlistId)
+                        "VALUES (%d, %d, %%(Track ID)s)" % (self.user_id, playlist_id)
                     )
                     self.cursor.executemany(sql, info["Playlist Items"])
-                    self.LoadPlaylistStats(playlistId)
-        print(("\nMax name is %d : %s" % (len(maxName), maxName)))
+                    self.load_playlist_stats(playlist_id)
+        print(("\nMax name is %d : %s" % (len(max_name), max_name)))
 
-    def LoadAllPlaylistStats(self):
-        playlists = []
+    def load_all_playlist_stats(self):
         rows = []
         self.cursor.execute(
             "SELECT Name, Playlist_ID FROM playlists "
-            "WHERE User_ID = %d" % self.userId
+            "WHERE User_ID = %d" % self.user_id
         )
         row = self.cursor.fetchone()
         while row:
@@ -226,9 +228,9 @@ class iTunesLoader:
 
         for (name, plid) in rows:
             logging.debug("Stats for: %s", name)
-            self.LoadPlaylistStats(plid)
+            self.load_playlist_stats(plid)
 
-    def LoadPlaylistStats(self, playlistId):
+    def load_playlist_stats(self, playlist_id):
         """Fill out a lookup table with data about stats for playlists.
     This is somewhat expensive so we pre fill it out.
     """
@@ -243,7 +245,7 @@ class iTunesLoader:
             "AND tracks.User_ID = playlist_tracks.User_ID "
             "WHERE playlist_tracks.Playlist_ID = '%d' "
             "AND tracks.User_ID = %d "
-            "GROUP BY stars" % (playlistId, self.userId)
+            "GROUP BY stars" % (playlist_id, self.user_id)
         )
         arr = self.cursor.fetchall()
 
@@ -251,10 +253,10 @@ class iTunesLoader:
             self.cursor.execute(
                 "REPLACE INTO playlist_stats "
                 "(User_ID, Playlist_ID, Rating, Count) VALUES "
-                "(%d, %d, %d, %d)" % (self.userId, playlistId, row[0] * 20, row[1])
+                "(%d, %d, %d, %d)" % (self.user_id, playlist_id, row[0] * 20, row[1])
             )
 
-    def updateStatus(self, out, character=".", every=20):
+    def update_status(self, out, character=".", every=20):
         """Print a dot on every fiftieth item"""
         if not out.__mod__(every):
             if not out.__mod__(every * 50):
@@ -263,7 +265,7 @@ class iTunesLoader:
                 sys.stdout.write(character)
             sys.stdout.flush()
 
-    def ShowMaxLengths(self):
+    def show_max_lengths(self):
         for key in list(self.max.keys()):
             print(("%20s:%3d:%s" % (key, len(self.max[key]), self.max[key])))
         if self.missing:
@@ -283,7 +285,7 @@ class iTunesLoader:
                         )
                     )
 
-    def ClearDatabase(self):
+    def clear_database(self):
         self.cursor.execute("DELETE FROM playlist_stats")
         self.cursor.execute("DELETE FROM playlist_tracks")
         self.cursor.execute("DELETE FROM playlists")
@@ -293,8 +295,8 @@ class iTunesLoader:
 def touch(filename):
     if os.path.exists(filename):
         os.remove(filename)
-    f = open(filename, "w")
-    f.close()
+    file = open(filename, "w")
+    file.close()
 
 
 def main():
@@ -317,15 +319,15 @@ def main():
     config.set("loader", "stats", "yes")
     config.read(["itdb.config", os.path.expanduser("~/.itdb.config")])
 
-    for opt, arg in opts:
+    for opt, _ in opts:
         if opt in ("-h", "--help"):
             usage(0)
-        if opt in ("-m"):
+        if opt in ("-m",):
             config.set("loader", "showmax", "true")
-        if opt in ("-n"):
+        if opt in ("-n",):
             config.set("loader", "clear", "false")
             config.set("loader", "stats", "false")
-        if opt in ("-f"):
+        if opt in ("-f",):
             config.set("loader", "force", "true")
 
     xmlfile = config.get("iTunes", "xmlfile")
@@ -351,12 +353,12 @@ def main():
     if itl:
         if config.getboolean("loader", "clear"):
             logging.info("Clearing database")
-            itl.ClearDatabase()
+            itl.clear_database()
 
-        itl.LoadTracks()
-        itl.LoadPlaylists()
+        itl.load_tracks()
+        itl.load_playlists()
         if config.getboolean("loader", "showmax"):
-            itl.ShowMaxLengths()
+            itl.show_max_lengths()
 
     if config.getboolean("loader", "stats"):
         to_html = itdb2html.iTunesDbToHtml(config)

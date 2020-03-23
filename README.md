@@ -11,9 +11,8 @@ itdb2html is a super old crusty, crufty web-ui for your music
 Here's what I had to do on my mac to get things working.
 
 ```bash
-# from: https://stackoverflow.com/questions/12218229
 brew install mysql python3
-pip3 install mysqlclient python-dateutil
+pip3 install appscript mysqlclient python-dateutil
 ```
 
 # Database Setup
@@ -21,7 +20,7 @@ pip3 install mysqlclient python-dateutil
 Copy the config file and install mysql (I like [brew](http://brew.sh/)).
 
 ```bash
-mysql.server.start
+mysql.server start
 
 cp itdb.config.example ~/.itdb.config
 # maybe you want to edit ~/.itdb.config now?
