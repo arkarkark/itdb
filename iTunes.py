@@ -40,13 +40,13 @@ class Library:
         """Parse the iTunes Library"""
 
         if not self.libFile:
-            print "No path specified, guessing..."
+            print("No path specified, guessing...")
             if not self.find(libPath): raise IOError
 
         try:
             self.events = pulldom.parse(self.libFile)
         except IOError:
-            print "Unable to read the iTunes Library"
+            print("Unable to read the iTunes Library")
 
 
     def __getNextTag(self, tag):
@@ -118,7 +118,7 @@ class Library:
                         # print "Ignoring %s: %s" % (curKey, node.tagName)
                     # print '%s : %s=%r (from %r)' %
                     # (node.tagName, curKey, data[curKey], self.__getAll(node))
-        if data.has_key('Track ID') or data.has_key('Playlist ID'):
+        if 'Track ID' in data or 'Playlist ID' in data:
             return data
         else:
             return False
@@ -231,7 +231,7 @@ class Library:
                 return True
 
         # Couldn't find anything
-        print "Couldn't find it in the usual places"
+        print("Couldn't find it in the usual places")
         return False
 
 
@@ -263,10 +263,10 @@ class Album:
         in the library. This is psychology rather than user testing,
         so mileage will vary. Must test this!
         """
-        trackInfo['Artist'] = trackInfo.has_key('Artist') and trackInfo['Artist'] or ""
-        trackInfo['Rating'] = trackInfo.has_key('Rating') and trackInfo['Rating'] or 60
-        trackInfo['Play Count'] = trackInfo.has_key('Play Count') and trackInfo['Play Count'] or 0
-        trackInfo['Total Time'] = trackInfo.has_key('Total Time') and trackInfo['Total Time'] or 0
+        trackInfo['Artist'] = 'Artist' in trackInfo and trackInfo['Artist'] or ""
+        trackInfo['Rating'] = 'Rating' in trackInfo and trackInfo['Rating'] or 60
+        trackInfo['Play Count'] = 'Play Count' in trackInfo and trackInfo['Play Count'] or 0
+        trackInfo['Total Time'] = 'Total Time' in trackInfo and trackInfo['Total Time'] or 0
 
         # Take the album name from the first track
         if not self.title:
@@ -275,9 +275,9 @@ class Album:
         # FIXME: This will probably mess up Amazon searches for compilations
         if not self.artist:
             self.artist = trackInfo['Artist']
-        elif self.artist <> trackInfo['Artist']:
+        elif self.artist != trackInfo['Artist']:
             # More than one artist in this album
-            if self.artist <> "Various Artists":
+            if self.artist != "Various Artists":
               self.artist = "Various Artists"
 
         self.tracks.append(trackInfo)
@@ -321,13 +321,13 @@ if __name__ == "__main__":
     try:
         lib = Library(sys.argv[1])
     except IndexError:
-        print "You must specify a location for the Library"
+        print("You must specify a location for the Library")
         raise SystemExit
 
     try:
         lib.load()
     except:
-        print "Unable to access the iTunes Library"
+        print("Unable to access the iTunes Library")
         raise SystemExit
 
     trackInfo = lib.getTrack()
@@ -338,4 +338,4 @@ if __name__ == "__main__":
         except EOFError:
             break;
 
-    print "Found %s tracks" % numTracks
+    print("Found %s tracks" % numTracks)

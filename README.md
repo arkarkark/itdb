@@ -12,18 +12,8 @@ Here's what I had to do on my mac to get things working.
 
 ```bash
 # from: https://stackoverflow.com/questions/12218229
-brew install mysql
-brew unlink mysql
-brew install mysql-connector-c
-ln -s /usr/local/bin/mysql_config-e /usr/local/bin/mysql_config
-sed -i -e 's/libs="$libs -l "/libs="$libs -lmysqlclient -lssl -lcrypto"/g' /usr/local/bin/mysql_config
-pip install MySQL-python
-brew unlink mysql-connector-c
-brew link --overwrite mysql
-
-easy_install pip cheetah
-pip install MySQL-python
-pip install python-dateutil
+brew install mysql python3
+pip3 install mysqlclient python-dateutil
 ```
 
 # Database Setup
@@ -31,7 +21,6 @@ pip install python-dateutil
 Copy the config file and install mysql (I like [brew](http://brew.sh/)).
 
 ```bash
-brew install mysql
 mysql.server.start
 
 cp itdb.config.example ~/.itdb.config
@@ -42,7 +31,7 @@ mysql -u root
 
 Then run these commands (you might want to change the password (and in ~/.itdb.config too):
 ```sql
-CREATE USER itdb@localhost IDENTIFIED WITH mysql_native_password BY 'itdb';
+CREATE USER 'itdb'@'localhost' IDENTIFIED BY 'itdb';
 GRANT ALL PRIVILEGES ON itdb.* TO 'itdb'@'localhost' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
 ```
