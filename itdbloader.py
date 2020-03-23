@@ -59,7 +59,7 @@ class iTunesLoader:
             logging.info(cmd)
             os.system(cmd)
             self.filename = self.tmp
-            atexit.register(self.cleanup)
+            # atexit.register(self.cleanup)
 
         logging.info("loading %s", self.filename)
         self.lib = iTunes.Library(self.filename)
@@ -126,10 +126,11 @@ class iTunesLoader:
             newkeys = []
             # find the max lengths
             for key in keys:
+                if key not in self.max or len(str(info[key])) > len(self.max[key]):
+                    self.max[key] = str(info[key])
+
                 if key.replace(" ", "_") in colums_we_care_about:
                     newkeys.append(key)
-                    if key not in self.max or len(str(info[key])) > len(self.max[key]):
-                        self.max[key] = str(info[key])
                 else:
                     if key not in self.missing or len(str(info[key])) > len(
                         self.missing[key]
@@ -209,7 +210,7 @@ class iTunesLoader:
                     )
                     self.cursor.executemany(sql, info["Playlist Items"])
                     self.LoadPlaylistStats(playlistId)
-        print("Max name is %d : %s" % (len(maxName), maxName))
+        print(("\nMax name is %d : %s" % (len(maxName), maxName)))
 
     def LoadAllPlaylistStats(self):
         playlists = []
@@ -264,18 +265,23 @@ class iTunesLoader:
 
     def ShowMaxLengths(self):
         for key in list(self.max.keys()):
-            print("%20s:%3d:%s" % (key, len(self.max[key]), self.max[key]))
+            print(("%20s:%3d:%s" % (key, len(self.max[key]), self.max[key])))
         if self.missing:
-            self.missing = [
+            missing_keys = [
                 key
                 for key in list(self.missing.keys())
-                if key not in self.ok_to_be_missing and key in self.max
+                if key not in self.ok_to_be_missing
             ]
-            if self.missing:
-                print("The following table keys are missing:")
+            if missing_keys:
+                print("\n\n\nThe following table keys are missing:")
                 print("Perhaps you should update your itdb.sql?")
-                for key in list(self.missing.keys()):
-                    print("%20s:%3d:%s" % (key, len(self.max[key]), self.max[key]))
+                for key in missing_keys:
+                    print(
+                        (
+                            "%20s:%3d:%s"
+                            % (key, len(self.missing[key]), self.missing[key])
+                        )
+                    )
 
     def ClearDatabase(self):
         self.cursor.execute("DELETE FROM playlist_stats")
