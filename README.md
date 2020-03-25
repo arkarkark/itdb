@@ -12,7 +12,7 @@ Here's what I had to do on my mac to get things working.
 
 ```bash
 brew install mysql python3
-pip3 install appscript mysqlclient python-dateutil
+pip3 install appscript cheetah3 python-dateutil mysqlclient
 ```
 
 # Database Setup
