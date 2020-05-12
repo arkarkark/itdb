@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Copyright 2020 Alex K (wtwf.com)
+# PYTHON_ARGCOMPLETE_OK
 
 """Convert an SQL statement into an itunes playlist.
 
@@ -19,7 +20,11 @@ import os
 import sys
 
 import appscript
+import argcomplete
 import MySQLdb
+
+
+TYPES_TO_PLAYLIST = {"Music": "Library", "Movies": "Movies", "TV Shows": "TV Shows"}
 
 
 def usage(code, msg=""):
@@ -34,22 +39,23 @@ def usage(code, msg=""):
     sys.exit(code)
 
 
-def playlist_from_results(name, rows):
+def playlist_from_results(name, rows, source_name):
     "Use appscript to make a playlist and add tracks to it."
     i = appscript.app("iTunes")
+    library = i.playlists[appscript.its.name == source_name]()[0]
+
     # TODO: maybe check to see if a playlist with this name already exists?
-    playlist = i.playlists[1].make(new=appscript.k.playlist)
+    playlist = library.make(new=appscript.k.playlist)
     playlist.name.set(name)
 
     for row in rows:
         print("name" in row and row["name"] or row["Persistent_ID"])
-        track = i.user_playlists[1].tracks[
-            appscript.its.persistent_ID == row["Persistent_ID"]
-        ]
-        track.duplicate(to=playlist)
+        track = library.tracks[appscript.its.persistent_ID == row["Persistent_ID"]]()
+        if track:
+            x = track[0].duplicate(to=playlist)
 
 
-def sql_to_playlist(config, sql, playlist):
+def sql_to_playlist(config, sql, playlist, source_name):
     "Connect and make a playlist from some SQL."
     conn = MySQLdb.connect(
         host=config.get("client", "host"),
@@ -64,7 +70,7 @@ def sql_to_playlist(config, sql, playlist):
     cursor = conn.cursor(MySQLdb.cursors.DictCursor)
     cursor.execute(sql)
     rows = cursor.fetchall()
-    playlist_from_results(playlist, rows)
+    playlist_from_results(playlist, rows, source_name)
 
 
 def main():
@@ -76,7 +82,15 @@ def main():
     parser.add_argument("-p", "--playlist", help="playlist name")
     parser.add_argument("-v", "--verbose", help="Log verbosely", action="store_true")
     parser.add_argument("-d", "--debug", help="Log debug messages", action="store_true")
+    parser.add_argument(
+        "-t",
+        "--type",
+        help="What type of tracks are they",
+        default="Music",
+        choices=TYPES_TO_PLAYLIST.keys(),
+    )
 
+    argcomplete.autocomplete(parser)
     args = parser.parse_args()
 
     if args.verbose:
@@ -92,7 +106,7 @@ def main():
     config = configparser.ConfigParser()
     config.read(["itdb.config", os.path.expanduser("~/.itdb.config")])
 
-    sql_to_playlist(config, args.sql, args.playlist)
+    sql_to_playlist(config, args.sql, args.playlist, TYPES_TO_PLAYLIST[args.type])
 
 
 if __name__ == "__main__":

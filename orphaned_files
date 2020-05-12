@@ -1,0 +1,140 @@
+#!/usr/bin/env python3
+# Copyright 2019 Alex K (wtwf.com)
+# PYTHON_ARGCOMPLETE_OK
+
+"""Program to do the thing.
+
+"""
+
+__author__ = "wtwf.com (Alex K)"
+
+import argparse
+import collections
+import html
+import logging
+import os
+import urllib.parse
+
+import argcomplete
+
+
+def main():
+    """Parse args and do the thing."""
+    logging.basicConfig()
+
+    parser = argparse.ArgumentParser(description="Program to do the thing.")
+    parser.add_argument(
+        "--music-folder", help="Location of iTunes media", default="/Volumes/d8/iTunes"
+    )
+    parser.add_argument("-v", "--verbose", help="Log verbosely", action="store_true")
+    parser.add_argument("-d", "--debug", help="Log debug messages", action="store_true")
+    parser.add_argument(
+        "--no-get-data",
+        action="store_false",
+        default=True,
+        dest="get_data",
+        help="Collect the data first",
+    )
+
+    argcomplete.autocomplete(parser)
+    args = parser.parse_args()
+
+    if args.verbose:
+        logging.getLogger().setLevel(logging.INFO)
+    if args.debug:
+        logging.getLogger().setLevel(logging.DEBUG)
+
+    logging.info("Log")
+
+    if args.get_data:
+        get_data(args)
+
+    find_orphaned()
+
+
+def get_data(args):
+    print("Getting Data from iTunes Music Library.xml")
+    library = os.path.expanduser("~/Music/iTunes/iTunes Music Library.xml")
+    os.system(
+        f"egrep -o 'file:///[^<]+' '{library}' "
+        "> /tmp/itunesmusiclibrary.locations.urlencoded.txt"
+    )
+    print("Finding Files")
+    os.system(f"(cd {args.music_folder}; find . -type f > /tmp/itunes_real_files.txt)")
+
+
+def load_itdb_files():
+    items = []
+    prefix_length = len("file:///Volumes/D8/iTunes/")
+    with open("/tmp/itunesmusiclibrary.locations.urlencoded.txt") as infile:
+        for line in infile:
+            item = html.unescape(
+                urllib.parse.unquote(line[prefix_length:].strip())
+            ).lower()
+
+            if item:
+                items.append("./" + item)
+    return items
+
+
+def read_real_files():
+    items = []
+    with open("/tmp/itunes_real_files.txt") as infile:
+        for line in infile:
+            items.append(line.strip().lower())
+    return items
+
+
+def find_orphaned():
+    real_files = read_real_files()
+    itdb_files = load_itdb_files()
+    real_files = [
+        fil
+        for fil in real_files
+        if fil[-10:] != "/.ds_store"
+        and fil[:39] != "./automatically add to itunes.localized"
+        and fil[:8] != "./tones/"
+        and fil[:22] != "./mobile applications/"
+        and fil[:27] != "./.itunes preferences.plist"
+    ]
+
+    real_files_dict = dict.fromkeys(real_files, True)
+
+    missing = []
+    for fil in itdb_files:
+        if fil == "./":
+            print("FOUND", fil)
+
+        if fil in real_files_dict:
+            real_files_dict[fil] = False
+        else:
+            missing.append(fil)
+
+    print(f"Missing count: {len(missing)}")
+    orphans = [key for key, value in real_files_dict.items() if value]
+    orphan_dirs = collections.defaultdict(int)
+    for orphan in orphans:
+        orphan_dirs[os.path.dirname(orphan)] += 1
+
+    print(f"Orphans count: {len(orphans)}")
+    write_file("/tmp/orphans.txt", orphans)
+    write_file("/tmp/missing.txt", missing)
+
+    orphan_dirs = {
+        k: v for k, v in sorted(orphan_dirs.items(), key=lambda item: -1 * item[1])
+    }
+
+    for dirname, count in orphan_dirs.items():
+        if count > 3:
+            print(f"{count:4d} {dirname}")
+
+
+def write_file(filename, items):
+    print(f"writing: {filename}")
+    with open(filename, "w") as outfile:
+        for item in sorted(items):
+            print(item, file=outfile)
+
+
+if __name__ == "__main__":
+    main()
