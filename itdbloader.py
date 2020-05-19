@@ -233,13 +233,13 @@ class DbLoader:
 
     def show_max_lengths(self):
         print("Max field lengths...")
-        for key in list(self.max.keys()):
-            print(("%20s:%3d:%s" % (key, len(self.max[key]), self.max[key])))
+        for key, value in sorted(self.max.items()):
+            print("%20s:%3d:%s" % (key, len(value), value))
         if self.missing:
             print("\n\nThe following table keys are missing:")
             print("Perhaps you should update your itdb.sql?")
-            for key, value in self.missing.items():
-                print(("%20s:%3d:%s" % (key, len(value), value)))
+            for key, value in sorted(self.missing.items()):
+                print("%20s:%3d:%s" % (key, len(value), value))
 
     def get_track_columns(self):
         # find columns in the tracks table
@@ -248,7 +248,7 @@ class DbLoader:
         columns_we_care_about = [row[0] for row in rows]
 
         logging.debug(
-            "We care about these columns: %s", ", ".join(columns_we_care_about)
+            "We care about these columns: %s", ", ".join(sorted(columns_we_care_about))
         )
         return columns_we_care_about
 
