@@ -21,6 +21,7 @@ import sys
 
 import argcomplete
 import humanize
+import tqdm
 import MySQLdb
 
 import itdb2html
@@ -64,7 +65,7 @@ atexit.register(LogRuntime.show_runtimes)
 def get_config():
     config = configparser.ConfigParser()
     config.add_section("loader")
-    config.set("loader", "showmax", "no")
+    config.set("loader", "showmax", "yes")
     config.set("loader", "force", "no")
     config.set("loader", "clear", "yes")
     config.set("loader", "stats", "yes")
@@ -105,6 +106,7 @@ def load_itdb(config):
 
 @LogRuntime()
 def write_stats(config):
+    logging.info("Writing Stats with itdb2html")
     to_html = itdb2html.iTunesDbToHtml(config)
     to_html.ClearCache()
     to_html.WriteStats()
@@ -112,7 +114,6 @@ def write_stats(config):
 
 class DbLoader:
     def __init__(self, config, itunes):
-        self.filename = config.get("iTunes", "xmlfile")
         self.itunes = itunes
         self.conn = db_connect(config)
         self.conn.autocommit(True)
@@ -122,8 +123,6 @@ class DbLoader:
         self.max = {}
         # dictionary of column names we're missing (and their max values)
         self.missing = {}
-        # column names we don't care if they're missing
-        self.ok_to_be_missing = []
 
         if config.getboolean("loader", "clear"):
             logging.info("Clearing database")
@@ -152,10 +151,7 @@ class DbLoader:
         columns_we_care_about = self.get_track_columns()
 
         logging.info("Loading tracks data")
-        num = 0
-        for track in tracks.values():
-            num += 1
-            self.update_status(num, ".", every=100)
+        for track in tqdm.tqdm(tracks.values()):
 
             # we don't load everything, only things we have columns for
             keys = list(track.keys())
@@ -187,70 +183,63 @@ class DbLoader:
 
     @LogRuntime()
     def load_playlists(self):
-        playlists = self.itunes["Playlists"]
         max_name = ""
-        num = 0
-        for playlist in playlists:
-            num += 1
-            self.update_status(num, "*", every=1)
+        playlist_tracks_filename = "/tmp/playlist_tracks.csv"
+        with open(playlist_tracks_filename, "w") as playlist_tracks:
 
-            new_playlist = {
-                "User ID": self.user_id,
-                "Playlist ID": -1,
-                "Name": "",
-                "Playlist Persistent ID": "",
-                "Parent Persistent ID": "",
-            }
-            for key in playlist.keys():
-                if key in new_playlist:
-                    new_playlist[key] = playlist[key]
+            for playlist in tqdm.tqdm(self.itunes["Playlists"]):
 
-            columns = ", ".join(
-                [x.replace(" ", "_") for x in list(new_playlist.keys())]
-            )
-            values = ", ".join(["%%(%s)s" % x for x in list(new_playlist.keys())])
-            sql = "REPLACE INTO playlists (%s) VALUES (%s)" % (columns, values)
+                new_playlist = {
+                    "User ID": self.user_id,
+                    "Playlist ID": -1,
+                    "Name": "",
+                    "Playlist Persistent ID": "",
+                    "Parent Persistent ID": "",
+                }
+                for key in playlist.keys():
+                    if key in new_playlist:
+                        new_playlist[key] = playlist[key]
 
-            try:
-                self.cursor.execute(sql, new_playlist)
-            except Exception as ex:
-                logging.error(
-                    "\nPlaylists FAIL:%r\nSQL:%s\nINFO:%r\n", ex, sql, new_playlist
+                sql = "REPLACE INTO playlists (%s) VALUES (%s)" % (
+                    ", ".join([x.replace(" ", "_") for x in list(new_playlist.keys())]),
+                    ", ".join(["%%(%s)s" % x for x in list(new_playlist.keys())]),
                 )
-            if len(playlist["Name"]) > len(max_name):
-                max_name = playlist["Name"]
+                try:
+                    self.cursor.execute(sql, new_playlist)
+                except Exception as ex:
+                    logging.error(
+                        "\nPlaylists FAIL:%r\nSQL:%s\nINFO:%r\n", ex, sql, new_playlist
+                    )
+                if len(playlist["Name"]) > len(max_name):
+                    max_name = playlist["Name"]
 
-            if "Playlist Items" in playlist:
-                # now add all the songs
-                playlist_id = int(playlist["Playlist ID"])
-                sql = (
-                    "REPLACE INTO playlist_tracks "
-                    "(User_ID, Playlist_ID, Track_ID) "
-                    "VALUES (%d, %d, %%(Track ID)s)" % (self.user_id, playlist_id)
-                )
-                self.cursor.executemany(sql, playlist["Playlist Items"])
-                self.load_playlist_stats(playlist_id)
+                if "Playlist Items" in playlist:
+                    # now add all the songs
+                    playlist_id = int(playlist["Playlist ID"])
+                    prefix = "%d,%d," % (self.user_id, playlist_id)
+                    for item in playlist["Playlist Items"]:
+                        print(prefix + str(item["Track ID"]), file=playlist_tracks)
+                    # self.load_playlist_stats(playlist_id)
+        logging.info("Loading playlist_tracks from temp file")
+        os.chmod(playlist_tracks_filename, 0o644)
+        sql = (
+            "LOAD DATA INFILE '%s' IGNORE INTO TABLE playlist_tracks FIELDS TERMINATED BY ','"
+            % playlist_tracks_filename
+        )
+        self.cursor.execute(sql)
+        os.unlink(playlist_tracks_filename)
+
         self.max["Playlist name"] = max_name
 
     def show_max_lengths(self):
+        print("Max field lengths...")
         for key in list(self.max.keys()):
             print(("%20s:%3d:%s" % (key, len(self.max[key]), self.max[key])))
         if self.missing:
-            missing_keys = [
-                key
-                for key in list(self.missing.keys())
-                if key not in self.ok_to_be_missing
-            ]
-            if missing_keys:
-                print("\n\n\nThe following table keys are missing:")
-                print("Perhaps you should update your itdb.sql?")
-                for key in missing_keys:
-                    print(
-                        (
-                            "%20s:%3d:%s"
-                            % (key, len(self.missing[key]), self.missing[key])
-                        )
-                    )
+            print("\n\nThe following table keys are missing:")
+            print("Perhaps you should update your itdb.sql?")
+            for key, value in self.missing.items():
+                print(("%20s:%3d:%s" % (key, len(value), value)))
 
     def get_track_columns(self):
         # find columns in the tracks table
@@ -262,15 +251,6 @@ class DbLoader:
             "We care about these columns: %s", ", ".join(columns_we_care_about)
         )
         return columns_we_care_about
-
-    def update_status(self, out, character=".", every=20):
-        """Print a dot on every twentieth item"""
-        if not out.__mod__(every):
-            if not out.__mod__(every * 50):
-                sys.stdout.write("% 6d\n" % out)
-            else:
-                sys.stdout.write(character)
-            sys.stdout.flush()
 
     def load_playlist_stats(self, playlist_id):
         """Fill out a lookup table with data about stats for playlists.

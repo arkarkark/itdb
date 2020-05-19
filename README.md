@@ -12,7 +12,7 @@ Here's what I had to do on my mac to get things working.
 
 ```bash
 brew install mysql python3
-pip3 install appscript argcomplete cheetah3 mysqlclient python-dateutil requests
+pip3 install appscript argcomplete cheetah3 humanize mysqlclient python-dateutil requests tdqm
 ```
 
 If `python3 -c 'import MySQLdb'` fails you might need to do some or all of this bullshit:
@@ -35,6 +35,8 @@ brew install mysql
 
 Copy the config file and install mysql (I like [brew](http://brew.sh/)).
 
+You might need to add `secure_file_priv = ''` to `/usr/loca/etc/my.cnf`
+
 ```bash
 mysql.server start
 
@@ -48,6 +50,7 @@ Then run these commands (you might want to change the password (and in ~/.itdb.c
 ```sql
 CREATE USER 'itdb'@'localhost' IDENTIFIED BY 'itdb';
 GRANT ALL PRIVILEGES ON itdb.* TO 'itdb'@'localhost' WITH GRANT OPTION;
+GRANT FILE on *.* to itdb@'localhost';
 FLUSH PRIVILEGES;
 ```
 
@@ -140,6 +143,19 @@ files).  Then I use adbrsync.py from
 [android-tools](https://github.com/jsharkey/android-tools) to copy
 these to my phone: `adbrsync.py /tmp/pl/phone /sdcard/Music`. Now I
 can use [RocketPlayer](https://play.google.com/store/apps/details?id=com.jrtstudio.AnotherMusicPlayer) to play my music!
+
+# sql_to_playlist
+
+sql_to_playlist will make a playlist from the results of an sql query. Use it like this:
+
+```
+./sql_to_playlist --type=TV\ Shows --playlist uppercase \
+  --sql "select name, Persistent_ID FROM tracks WHERE kind = 'MPEG-4 video file' and name REGEXP BINARY '^[^a-z]+\$'"
+```
+
+# orphaned_files
+
+Finds files that are in your library xml but do not exist on the filesystem. Also finds files under your music root that are not in your itunes library.
 
 # itdb2html
 
