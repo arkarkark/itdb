@@ -219,7 +219,6 @@ class DbLoader:
                     prefix = "%d,%d," % (self.user_id, playlist_id)
                     for item in playlist["Playlist Items"]:
                         print(prefix + str(item["Track ID"]), file=playlist_tracks)
-                    # self.load_playlist_stats(playlist_id)
         logging.info("Loading playlist_tracks from temp file")
         os.chmod(playlist_tracks_filename, 0o644)
         sql = (
@@ -228,6 +227,7 @@ class DbLoader:
         )
         self.cursor.execute(sql)
         os.unlink(playlist_tracks_filename)
+        self.load_all_playlist_stats()
 
         self.max["Playlist name"] = max_name
 
@@ -251,6 +251,15 @@ class DbLoader:
             "We care about these columns: %s", ", ".join(sorted(columns_we_care_about))
         )
         return columns_we_care_about
+
+    @LogRuntime()
+    def load_all_playlist_stats(self):
+        logging.info("Loading all playlist_stats")
+        self.cursor.execute(
+            "SELECT Playlist_ID FROM playlists WHERE User_ID = %d" % self.user_id
+        )
+        for (plid,) in tqdm.tqdm(self.cursor.fetchall()):
+            self.load_playlist_stats(int(plid))
 
     def load_playlist_stats(self, playlist_id):
         """Fill out a lookup table with data about stats for playlists.
