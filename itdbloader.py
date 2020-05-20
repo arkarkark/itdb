@@ -2,9 +2,7 @@
 # Copyright 2019 Alex K (wtwf.com)
 # PYTHON_ARGCOMPLETE_OK
 
-"""Load itunes xml into mysql
-
-"""
+"""Load itunes xml into mysql."""
 
 __author__ = "wtwf.com (Alex K)"
 
@@ -12,6 +10,7 @@ import argparse
 import atexit
 import collections
 import configparser
+import csv
 import datetime
 import logging
 import os
@@ -150,41 +149,36 @@ class DbLoader:
 
         columns_we_care_about = self.get_track_columns()
 
-        logging.info("Loading tracks data")
-        for track in tqdm.tqdm(tracks.values()):
+        tracks_csv_filename = "/tmp/itdb_tracks.csv"
+        logging.info("Making tracks csv")
+        with open(tracks_csv_filename, "w", newline="") as csv_file:
+            writer = csv.writer(csv_file)
+            for track in tqdm.tqdm(tracks.values()):
 
-            # we don't load everything, only things we have columns for
-            keys = list(track.keys())
+                # we don't load everything, only things we have columns for
+                keys = list(track.keys())
 
-            newkeys = []
-            for key in keys:
-                if key not in self.max or len(str(track[key])) > len(self.max[key]):
-                    self.max[key] = str(track[key])
+                row = [
+                    track.get(x.replace("_", " "), "") for x in columns_we_care_about
+                ]
+                writer.writerow(row)
+                for key in keys:
+                    if key not in self.max or len(str(track[key])) > len(self.max[key]):
+                        self.max[key] = str(track[key])
 
-                if key.replace(" ", "_") in columns_we_care_about:
-                    newkeys.append(key)
-                else:
-                    if key not in self.missing or len(str(track[key])) > len(
-                        self.missing[key]
-                    ):
-                        self.missing[key] = str(track[key])
-            keys = newkeys
-
-            sql = "REPLACE INTO tracks (User_ID, %s) VALUES (%d, %s)" % (
-                ", ".join([x.replace(" ", "_") for x in keys]),
-                self.user_id,
-                ", ".join(["%%(%s)s" % x for x in keys]),
-            )
-            try:
-                self.cursor.execute(sql, track)
-            except Exception as ex:
-                logging.error("\nTracks FAIL:%r\nSQL:%s\nTRACK:%r\n", ex, sql, track)
+                    if key.replace(" ", "_") not in columns_we_care_about:
+                        if key not in self.missing or len(str(track[key])) > len(
+                            self.missing[key]
+                        ):
+                            self.missing[key] = str(track[key])
+        self.load_csv("tracks", tracks_csv_filename)
         print("")
 
     @LogRuntime()
     def load_playlists(self):
         max_name = ""
-        playlist_tracks_filename = "/tmp/playlist_tracks.csv"
+        playlist_tracks_filename = "/tmp/itdb_playlist_tracks.csv"
+        logging.info("Creating playlists and playlist_tracks csv")
         with open(playlist_tracks_filename, "w") as playlist_tracks:
 
             for playlist in tqdm.tqdm(self.itunes["Playlists"]):
@@ -219,17 +213,23 @@ class DbLoader:
                     prefix = "%d,%d," % (self.user_id, playlist_id)
                     for item in playlist["Playlist Items"]:
                         print(prefix + str(item["Track ID"]), file=playlist_tracks)
-        logging.info("Loading playlist_tracks from temp file")
-        os.chmod(playlist_tracks_filename, 0o644)
-        sql = (
-            "LOAD DATA INFILE '%s' IGNORE INTO TABLE playlist_tracks FIELDS TERMINATED BY ','"
-            % playlist_tracks_filename
-        )
-        self.cursor.execute(sql)
-        os.unlink(playlist_tracks_filename)
+        self.load_csv("playlist_tracks", playlist_tracks_filename)
         self.load_all_playlist_stats()
-
         self.max["Playlist name"] = max_name
+
+    @LogRuntime(args=[2])
+    def load_csv(self, table, filename):
+        logging.info("Loading csv into: %r", table)
+        os.chmod(filename, 0o644)
+        sql = (
+            """LOAD DATA INFILE '%s' IGNORE INTO TABLE %s FIELDS TERMINATED BY ',' ENCLOSED BY '"'"""
+            % (filename, table)
+        )
+        try:
+            self.cursor.execute(sql)
+        except Exception as ex:
+            logging.error("\nTracks FAIL:%r\nSQL:%s\n", ex, sql)
+        os.unlink(filename)
 
     def show_max_lengths(self):
         print("Max field lengths...")
