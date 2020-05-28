@@ -15,20 +15,13 @@ brew install mysql python3
 pip3 install appscript argcomplete cheetah3 humanize mysqlclient python-dateutil requests tdqm
 ```
 
-If `python3 -c 'import MySQLdb'` fails you might need to do some or all of this bullshit:
+If `python3 -c 'import MySQLdb'` fails you might need to this bullshit:
 
 ```bash
-brew install openssl@1.0
-cd /usr/local/opt/openssl/lib/
-ln -s /usr/local/Cellar/openssl/1.0.2t/lib/libssl.1.0.0.dylib
-ln -s /usr/local/Cellar/openssl/1.0.2t/lib/libcrypto.1.0.0.dylib
-
-brew uninstall mysql
-brew install mysql-connector-c
-pip3 install mysqlclient
-brew unlink mysql-connector-c
-brew install mysql
-
+brew install openssl@1.1
+cd /usr/local/opt/mysql/lib/
+ln -s /usr/local/opt/openssl/lib/libssl.1.1.dylib
+ln -s /usr/local/opt/openssl/lib/libcrypto.1.1.dylib
 ```
 
 # Database Setup

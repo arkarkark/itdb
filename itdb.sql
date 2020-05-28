@@ -77,7 +77,7 @@ Persistent_ID VARCHAR(20),
 Track_Type VARCHAR(8),
 File_Type INTEGER(4),
 File_Creator INTEGER(4),
-Location VARCHAR(2048),
+Location VARCHAR(512),
 File_Folder_Count INTEGER(1),
 Library_Folder_Count INTEGER(1),
 PRIMARY KEY (User_ID, Track_ID)

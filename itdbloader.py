@@ -154,12 +154,17 @@ class DbLoader:
         with open(tracks_csv_filename, "w", newline="") as csv_file:
             writer = csv.writer(csv_file)
             for track in tqdm.tqdm(tracks.values()):
+                track["User_ID"] = self.user_id
 
                 # we don't load everything, only things we have columns for
                 keys = list(track.keys())
 
+                def convert(val):
+                    return isinstance(val, bool) and (val and "1" or "0") or str(val)
+
                 row = [
-                    track.get(x.replace("_", " "), "") for x in columns_we_care_about
+                    convert(track.get(x.replace("_", " ")))
+                    for x in columns_we_care_about
                 ]
                 writer.writerow(row)
                 for key in keys:
@@ -229,7 +234,7 @@ class DbLoader:
             self.cursor.execute(sql)
         except Exception as ex:
             logging.error("\nTracks FAIL:%r\nSQL:%s\n", ex, sql)
-        os.unlink(filename)
+        # os.unlink(filename)
 
     def show_max_lengths(self):
         print("Max field lengths...")
